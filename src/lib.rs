@@ -69,4 +69,45 @@ mod tests {
             Ok((IpVersion::V4(Ipv4Addr::new(10, 0, 0, 1)), None))
         );
     }
+
+    #[test]
+    fn error_cases() {
+        let test_cases = vec![
+            // Edge cases and invalid
+            "invalid",             // Invalid
+            "[invalid]",           // Invalid in brackets
+            "192.168.1.1:99999",   // Invalid port (too high)
+            "[2001:db8::1]:99999", // IPv6 with invalid port
+            // "2001:db8::1:9999",    // IPv6 with no brackets and a port
+            "", // Empty string
+        ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn ok_cases() {
+        let test_cases = vec![
+            // IPv4 cases
+            "192.168.1.1",    // Plain IPv4
+            "192.168.1.1:80", // IPv4 with port
+            "127.0.0.1:8080", // IPv4 localhost with port
+            "0.0.0.0:443",    // IPv4 any address with port
+            // IPv6 cases
+            "2001:db8::1",                        // Plain IPv6
+            "[2001:db8::1]",                      // IPv6 with brackets
+            "[2001:db8::1]:80",                   // IPv6 with port
+            "[::1]:8080",                         // IPv6 localhost with port
+            "::1",                                // IPv6 localhost plain
+            "[2001:db8:85a3::8a2e:370:7334]:443", // Full IPv6 with port
+            "::ffff:192.168.1.1",                 // IPv4-mapped IPv6
+            "[::ffff:192.168.1.1]:80",            // IPv4-mapped IPv6 with port
+        ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_ok());
+        }
+    }
 }
