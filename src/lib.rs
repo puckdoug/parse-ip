@@ -35,6 +35,9 @@ impl Into<IpAddr> for IpVersion {
 }
 
 pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
+    let nospace: String = input.chars().filter(|c| !c.is_whitespace()).collect();
+    let input: &str = nospace.as_str();
+
     // Try to parse as a socket address first (with port)
     if let Ok(socket_addr) = SocketAddr::from_str(input) {
         let ip_version = IpVersion::from(socket_addr.ip());
@@ -71,6 +74,12 @@ mod tests {
     }
 
     #[test]
+    fn invalid_ipv4_number_too_high() {
+        let result = parse("300.1.1.1");
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn error_cases() {
         let test_cases = vec![
             // Edge cases and invalid
@@ -78,8 +87,8 @@ mod tests {
             "[invalid]",           // Invalid in brackets
             "192.168.1.1:99999",   // Invalid port (too high)
             "[2001:db8::1]:99999", // IPv6 with invalid port
-            // "2001:db8::1:9999",    // IPv6 with no brackets and a port
-            "", // Empty string
+            "2001:db8::1:60000",   // IPv6 with no brackets and a valid port
+            "",                    // Empty string
         ];
         for input in test_cases {
             let result = parse(input);
@@ -105,6 +114,57 @@ mod tests {
             "::ffff:192.168.1.1",                 // IPv4-mapped IPv6
             "[::ffff:192.168.1.1]:80",            // IPv4-mapped IPv6 with port
         ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn scoped_literal() {
+        let test_cases = vec![
+            "fe80::1ff:fe23:4567:890a%eth2", // Scoped literal IPv6 with zone index
+            "fe80::1ff:fe23:4567:890a%3",    // Scoped literal IPv6 with Zone index - Windows style
+        ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn with_protocol() {
+        let test_cases = vec![
+            "http://192.168.1.1:8080",
+            "https://10.0.0.1:443",
+            "ftp://192.168.1.1:21",
+            "tcp://192.168.1.1:22",
+            "udp://10.0.0.1:53",
+            "ws://192.168.1.1:8080",
+            "wss://[2001:db8::1]:443",
+        ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn network_socket_notation() {
+        let test_cases = vec![
+            "inet:192.168.1.1:8080",
+            "tcp4:192.168.1.1:22",
+            "tcp6:[::1]:22",
+        ];
+        for input in test_cases {
+            let result = parse(input);
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn with_spaces() {
+        let test_cases = vec!["192.168.1.1 : 8080", "192 . 168 . 1 . 1", "[ ::1 ] : 22"];
         for input in test_cases {
             let result = parse(input);
             assert!(result.is_ok());
