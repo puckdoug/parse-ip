@@ -36,7 +36,34 @@ impl Into<IpAddr> for IpVersion {
 
 pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
     let nospace: String = input.chars().filter(|c| !c.is_whitespace()).collect();
-    let input: &str = nospace.as_str();
+    let mut input: &str = nospace.as_str();
+
+    // Handle protocol prefixes (http://, https://, ftp://, etc.)
+    if let Some(pos) = input.find("://") {
+        input = &input[pos + 3..];
+    }
+
+    // Handle network socket notation generically (inet:, tcp4:, tcp6:, inet_addr:, in_addr_t:, etc.)
+    if let Some(colon_pos) = input.find(':') {
+        let prefix = &input[..colon_pos];
+        // Check if this looks like a socket notation prefix (letters, numbers, underscore)
+        if prefix.chars().all(|c| c.is_alphanumeric() || c == '_')
+            && prefix.len() > 0
+            && colon_pos < input.len() - 1
+            && !input.contains('%')
+        // Not scoped IPv6
+        {
+            let addr_part = &input[colon_pos + 1..];
+            // Check if the part after colon looks like an IP address (not just a port number)
+            if addr_part.contains('.')  // IPv4 pattern
+                || addr_part.contains(':') // IPv6 pattern
+                || addr_part.starts_with('[')
+            // Bracketed IPv6
+            {
+                input = addr_part;
+            }
+        }
+    }
 
     // Try to parse as a socket address first (with port)
     if let Ok(socket_addr) = SocketAddr::from_str(input) {
@@ -50,6 +77,21 @@ pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
         match Ipv6Addr::from_str(addr_str) {
             Ok(addr) => return Ok((IpVersion::V6(addr), None)),
             Err(_) => return Err(format!("Invalid IPv6 address in brackets: {}", addr_str)),
+        }
+    }
+
+    // Handle scoped IPv6 addresses (with zone identifier %)
+    if input.contains('%') {
+        // For scoped addresses, we need to strip the zone identifier for parsing
+        let addr_part = if let Some(percent_pos) = input.find('%') {
+            &input[..percent_pos]
+        } else {
+            input
+        };
+
+        match Ipv6Addr::from_str(addr_part) {
+            Ok(addr) => return Ok((IpVersion::V6(addr), None)),
+            Err(_) => {} // Continue to other parsing methods
         }
     }
 
