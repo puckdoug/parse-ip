@@ -25,15 +25,6 @@ impl From<IpAddr> for IpVersion {
     }
 }
 
-impl Into<IpAddr> for IpVersion {
-    fn into(self) -> IpAddr {
-        match self {
-            IpVersion::V4(v4) => IpAddr::V4(v4),
-            IpVersion::V6(v6) => IpAddr::V6(v6),
-        }
-    }
-}
-
 pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
     let nospace: String = input.chars().filter(|c| !c.is_whitespace()).collect();
     let mut input: &str = nospace.as_str();
@@ -48,7 +39,7 @@ pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
         let prefix = &input[..colon_pos];
         // Check if this looks like a socket notation prefix (letters, numbers, underscore)
         if prefix.chars().all(|c| c.is_alphanumeric() || c == '_')
-            && prefix.len() > 0
+            && !prefix.is_empty()
             && colon_pos < input.len() - 1
             && !input.contains('%')
         // Not scoped IPv6
@@ -89,9 +80,8 @@ pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
             input
         };
 
-        match Ipv6Addr::from_str(addr_part) {
-            Ok(addr) => return Ok((IpVersion::V6(addr), None)),
-            Err(_) => {} // Continue to other parsing methods
+        if let Ok(addr) = Ipv6Addr::from_str(addr_part) {
+            return Ok((IpVersion::V6(addr), None));
         }
     }
 
