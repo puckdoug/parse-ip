@@ -10,8 +10,8 @@ pub enum IpVersion {
 impl std::fmt::Display for IpVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IpVersion::V4(addr) => write!(f, "{}", addr),
-            IpVersion::V6(addr) => write!(f, "{}", addr),
+            IpVersion::V4(addr) => write!(f, "{addr}"),
+            IpVersion::V6(addr) => write!(f, "{addr}"),
         }
     }
 }
@@ -67,7 +67,7 @@ pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
         let addr_str = &input[1..input.len() - 1];
         match Ipv6Addr::from_str(addr_str) {
             Ok(addr) => return Ok((IpVersion::V6(addr), None)),
-            Err(_) => return Err(format!("Invalid IPv6 address in brackets: {}", addr_str)),
+            Err(_) => return Err(format!("Invalid IPv6 address in brackets: {addr_str}")),
         }
     }
 
@@ -88,7 +88,7 @@ pub fn parse(input: &str) -> Result<(IpVersion, Option<u16>), String> {
     // Try to parse as plain IP address (IPv4 or IPv6)
     match IpAddr::from_str(input) {
         Ok(addr) => Ok((IpVersion::from(addr), None)),
-        Err(_) => Err(format!("Invalid IP address: {}", input)),
+        Err(_) => Err(format!("Invalid IP address: {input}")),
     }
 }
 
